@@ -15,7 +15,12 @@ private let anyEndpoint = Endpoint(
     path: "items"
 )
 
+private let anyImageURL = URL(string: "https://cdn.example.com/a.jpg")!
+
 /// 스텁이 전역 상태라 순차 실행합니다.
+///
+/// `.serialized` 는 한 suite 안에서만 순서를 보장하고 suite 끼리는 병렬로 돌기 때문에,
+/// 스텁을 쓰는 테스트는 이 suite 하나에 모아 둡니다. 나눠 두면 서로의 응답을 덮어씁니다.
 @Suite("URLSessionHTTPClient", .serialized)
 struct URLSessionHTTPClientTests {
 
@@ -96,6 +101,27 @@ struct URLSessionHTTPClientTests {
 
         await #expect(throws: NetworkError.timeout) {
             try await makeSUT().send(anyEndpoint, as: [Item].self)
+        }
+    }
+
+    // MARK: 바이너리 내려받기
+
+    @Test("받은 바이트를 그대로 돌려줍니다")
+    func download_returnsRawBytes() async throws {
+        let bytes = Data([0xFF, 0xD8, 0xFF])
+        URLProtocolStub.respond(body: bytes)
+
+        let data = try await makeSUT().data(from: anyImageURL)
+
+        #expect(data == bytes)
+    }
+
+    @Test("내려받기 실패도 JSON 요청과 같은 방식으로 분류합니다")
+    func download_failure_usesSameClassification() async {
+        URLProtocolStub.fail(with: .notConnectedToInternet)
+
+        await #expect(throws: NetworkError.offline) {
+            try await makeSUT().data(from: anyImageURL)
         }
     }
 }

@@ -40,6 +40,26 @@ public struct URLSessionHTTPClient: HTTPClient {
     }
 }
 
+// MARK: - 바이너리 내려받기
+
+extension URLSessionHTTPClient: DataDownloader {
+    public func data(from url: URL) async throws(NetworkError) -> Data {
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(from: url)
+        } catch {
+            throw Self.mapTransportFailure(error)
+        }
+
+        guard let http = response as? HTTPURLResponse else {
+            throw .transport(.badServerResponse)
+        }
+        try Self.validate(http)
+        return data
+    }
+}
+
 // MARK: - 실패 분류
 
 extension URLSessionHTTPClient {
