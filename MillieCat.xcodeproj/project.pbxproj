@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5513668E3045685B00CBBFC9 /* Core_Domain in Frameworks */ = {isa = PBXBuildFile; productRef = 5513668D3045685B00CBBFC9 /* Core_Domain */; };
+		5513669A304568E300CBBFC9 /* Core_Service in Frameworks */ = {isa = PBXBuildFile; productRef = 55136699304568E300CBBFC9 /* Core_Service */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		55B0504A3044833C00048DCC /* MillieCat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MillieCat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +28,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5513668E3045685B00CBBFC9 /* Core_Domain in Frameworks */,
+				5513669A304568E300CBBFC9 /* Core_Service in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +72,8 @@
 			);
 			name = MillieCat;
 			packageProductDependencies = (
+				5513668D3045685B00CBBFC9 /* Core_Domain */,
+				55136699304568E300CBBFC9 /* Core_Service */,
 			);
 			productName = MillieCat;
 			productReference = 55B0504A3044833C00048DCC /* MillieCat.app */;
@@ -94,6 +103,13 @@
 			);
 			mainGroup = 55B050413044833C00048DCC;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5513668C3045685B00CBBFC9 /* XCLocalSwiftPackageReference "Packages/Core_Domain" */,
+				5513668F3045688500CBBFC9 /* XCLocalSwiftPackageReference "Packages/Core_Networking" */,
+				55136692304568B900CBBFC9 /* XCLocalSwiftPackageReference "Packages/ThirdParty_Realm" */,
+				55136695304568CF00CBBFC9 /* XCLocalSwiftPackageReference "Packages/Core_Persistence" */,
+				55136698304568E300CBBFC9 /* XCLocalSwiftPackageReference "Packages/Core_Service" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 55B0504B3044833C00048DCC /* Products */;
 			projectDirPath = "";
@@ -177,7 +193,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -234,7 +250,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -258,6 +274,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -289,6 +306,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -328,6 +346,40 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5513668C3045685B00CBBFC9 /* XCLocalSwiftPackageReference "Packages/Core_Domain" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Core_Domain;
+		};
+		5513668F3045688500CBBFC9 /* XCLocalSwiftPackageReference "Packages/Core_Networking" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Core_Networking;
+		};
+		55136692304568B900CBBFC9 /* XCLocalSwiftPackageReference "Packages/ThirdParty_Realm" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ThirdParty_Realm;
+		};
+		55136695304568CF00CBBFC9 /* XCLocalSwiftPackageReference "Packages/Core_Persistence" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Core_Persistence;
+		};
+		55136698304568E300CBBFC9 /* XCLocalSwiftPackageReference "Packages/Core_Service" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Core_Service;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5513668D3045685B00CBBFC9 /* Core_Domain */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Core_Domain;
+		};
+		55136699304568E300CBBFC9 /* Core_Service */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Core_Service;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 55B050423044833C00048DCC /* Project object */;
 }
