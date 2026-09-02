@@ -5,6 +5,9 @@ struct PhotoListView<Repository: PhotoRepository>: View {
     @StateObject private var store: PhotoListStore<Repository>
     private let loader: any PhotoDataLoader
 
+    /// 고른 칸입니다. 값이 있으면 상세 화면이 올라옵니다.
+    @State private var selected: Photo?
+
     init(repository: Repository, loader: any PhotoDataLoader) {
         _store = StateObject(wrappedValue: PhotoListStore(repository: repository))
         self.loader = loader
@@ -31,6 +34,10 @@ struct PhotoListView<Repository: PhotoRepository>: View {
             .overlay { emptyState }
         }
         .task { store.send(.onAppear) }
+        .fullScreenCover(item: $selected) { photo in
+            ImageDetailScreen(photo: photo, loader: loader) { selected = nil }
+                .ignoresSafeArea()
+        }
     }
 
     @ViewBuilder
@@ -41,17 +48,22 @@ struct PhotoListView<Repository: PhotoRepository>: View {
             // 한 줄은 5칸 × 300 이라 화면 폭을 넘습니다. 줄마다 좌우로 넘겨 봅니다.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: GridLayoutSpec.spacing) {
-                    ForEach(row.photos) { photo in
-                        PhotoCell(photo: photo, size: cellSize, loader: loader)
-                    }
+                    cells(of: row, size: cellSize)
                 }
             }
             .frame(height: cellSize.height)
         } else {
             // 세로에서는 한 줄이 곧 한 칸이라 넘길 것이 없습니다.
-            ForEach(row.photos) { photo in
-                PhotoCell(photo: photo, size: cellSize, loader: loader)
-            }
+            cells(of: row, size: cellSize)
+        }
+    }
+
+    /// 칸을 만드는 곳은 한 군데뿐입니다.
+    /// 방향마다 따로 만들면 한쪽에만 손이 닿아 동작이 갈립니다.
+    private func cells(of row: PhotoRow, size: CGSize) -> some View {
+        ForEach(row.photos) { photo in
+            PhotoCell(photo: photo, size: size, loader: loader)
+                .onTapGesture { selected = photo }
         }
     }
 
