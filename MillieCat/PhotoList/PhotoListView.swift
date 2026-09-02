@@ -13,9 +13,19 @@ struct PhotoListView<Repository: PhotoRepository>: View {
     var body: some View {
         GeometryReader { proxy in
             let isLandscape = GridLayoutSpec.isLandscape(containerSize: proxy.size)
+            let rows = PhotoRow.make(from: store.state.photos, isLandscape: isLandscape)
 
-            ScrollView(isLandscape ? [.horizontal, .vertical] : .vertical) {
-                grid(isLandscape: isLandscape, containerWidth: proxy.size.width)
+            // 바깥은 위아래로만 움직입니다. 좌우는 줄이 각자 맡습니다.
+            // 목록 전체가 대각선으로 움직이면 아래로 내리는 동안 좌우 위치까지
+            // 함께 밀려서, 보던 자리를 놓치기 쉽습니다.
+            ScrollView(.vertical) {
+                LazyVStack(spacing: GridLayoutSpec.spacing) {
+                    ForEach(rows) { row in
+                        rowView(row, isLandscape: isLandscape, containerWidth: proxy.size.width)
+                            .onAppear { loadMoreIfNeeded(after: row, in: rows) }
+                    }
+                }
+                .padding(.vertical, GridLayoutSpec.spacing)
             }
             .overlay(alignment: .top) { statusBanner }
             .overlay { emptyState }
@@ -23,30 +33,36 @@ struct PhotoListView<Repository: PhotoRepository>: View {
         .task { store.send(.onAppear) }
     }
 
-    private func grid(isLandscape: Bool, containerWidth: CGFloat) -> some View {
+    @ViewBuilder
+    private func rowView(_ row: PhotoRow, isLandscape: Bool, containerWidth: CGFloat) -> some View {
         let cellSize = GridLayoutSpec.cellSize(isLandscape: isLandscape, containerWidth: containerWidth)
-        let columns = Array(
-            repeating: GridItem(.fixed(cellSize.width), spacing: GridLayoutSpec.spacing),
-            count: GridLayoutSpec.columnCount(isLandscape: isLandscape)
-        )
 
-        return LazyVGrid(columns: columns, spacing: GridLayoutSpec.spacing) {
-            ForEach(store.state.photos) { photo in
+        if isLandscape {
+            // 한 줄은 5칸 × 300 이라 화면 폭을 넘습니다. 줄마다 좌우로 넘겨 봅니다.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: GridLayoutSpec.spacing) {
+                    ForEach(row.photos) { photo in
+                        PhotoCell(photo: photo, size: cellSize, loader: loader)
+                    }
+                }
+            }
+            .frame(height: cellSize.height)
+        } else {
+            // 세로에서는 한 줄이 곧 한 칸이라 넘길 것이 없습니다.
+            ForEach(row.photos) { photo in
                 PhotoCell(photo: photo, size: cellSize, loader: loader)
-                    .onAppear { loadMoreIfNeeded(after: photo) }
             }
         }
-        // 가로일 때는 5칸 × 300 이 화면 폭을 넘으므로, 화면에 맞추지 않고
-        // 격자 본래 너비를 그대로 두어 좌우로도 스크롤되게 합니다.
-        .frame(width: GridLayoutSpec.contentWidth(isLandscape: isLandscape, containerWidth: containerWidth))
-        .padding(.vertical, GridLayoutSpec.spacing)
     }
 
-    /// 마지막 칸이 보이면 다음 묶음을 요청합니다.
+    /// 마지막 줄이 보이면 다음 묶음을 요청합니다.
+    ///
+    /// 칸이 아니라 줄을 기준으로 봅니다. 가로에서는 줄의 마지막 칸이 화면 밖에 있어서,
+    /// 칸을 기준으로 하면 좌우로 끝까지 넘기기 전에는 다음 묶음을 부르지 못합니다.
     ///
     /// 겹쳐 나가는 것을 막는 판단은 `Store` 에 있으므로 여기서는 신호만 보냅니다.
-    private func loadMoreIfNeeded(after photo: Photo) {
-        guard photo.id == store.state.photos.last?.id else { return }
+    private func loadMoreIfNeeded(after row: PhotoRow, in rows: [PhotoRow]) {
+        guard row.id == rows.last?.id else { return }
         store.send(.reachedBottom)
     }
 

@@ -26,19 +26,36 @@ struct GridLayoutSpecTests {
     }
 
     /// 5칸 × 300 은 어떤 아이폰의 가로 폭보다도 넓습니다.
-    /// 격자를 화면 폭에 맞추지 않아야 좌우로도 스크롤됩니다.
-    @Test("가로에서 격자 너비가 화면 폭을 넘습니다")
-    func contentWidth_landscapeExceedsScreen() {
+    /// 줄을 화면 폭에 맞추지 않아야 그 줄이 좌우로 넘어갑니다.
+    @Test("가로에서 한 줄의 너비가 화면 폭을 넘습니다")
+    func rowWidth_landscapeExceedsScreen() {
         let screenWidth: CGFloat = 874
-        let content = GridLayoutSpec.contentWidth(isLandscape: true, containerWidth: screenWidth)
+        let width = GridLayoutSpec.rowWidth(isLandscape: true, containerWidth: screenWidth)
 
-        #expect(content == 5 * 300 + 4 * GridLayoutSpec.spacing)
-        #expect(content > screenWidth)
+        #expect(width == 5 * 300 + 4 * GridLayoutSpec.spacing)
+        #expect(width > screenWidth)
     }
 
-    @Test("세로에서는 격자가 화면 폭에 맞습니다")
-    func contentWidth_portraitMatchesScreen() {
-        #expect(GridLayoutSpec.contentWidth(isLandscape: false, containerWidth: 402) == 402)
+    @Test("세로에서는 한 줄이 화면 폭에 맞습니다")
+    func rowWidth_portraitMatchesScreen() {
+        #expect(GridLayoutSpec.rowWidth(isLandscape: false, containerWidth: 402) == 402)
+    }
+
+    @Test("가로에서는 다섯 칸씩 끊습니다")
+    func rows_landscapeChunksByFive() {
+        let rows = GridLayoutSpec.rows(Array(1 ... 12), isLandscape: true)
+
+        #expect(rows == [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11, 12]])
+    }
+
+    @Test("세로에서는 한 칸씩 끊습니다")
+    func rows_portraitChunksByOne() {
+        #expect(GridLayoutSpec.rows([1, 2, 3], isLandscape: false) == [[1], [2], [3]])
+    }
+
+    @Test("비어 있으면 줄도 없습니다")
+    func rows_empty() {
+        #expect(GridLayoutSpec.rows([Int](), isLandscape: true).isEmpty)
     }
 
     /// 기기 방향에는 화면을 위로 둔 상태처럼 가로도 세로도 아닌 값이 섞여 들어옵니다.
