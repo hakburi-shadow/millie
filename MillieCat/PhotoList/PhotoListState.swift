@@ -45,14 +45,29 @@ nonisolated extension PhotoListState {
     var isEmpty: Bool {
         photos.isEmpty
     }
+
+    var isFailed: Bool {
+        if case .failed = phase { return true }
+        return false
+    }
+
+    /// 지금 보고 있는 것이 최신이 아닌 상태인지 확인합니다.
+    ///
+    /// 저장된 것을 보고 있거나 불러오기에 실패한 경우입니다.
+    /// 연결이 돌아왔을 때 다시 불러올지 판단하는 기준이 됩니다.
+    var needsFreshData: Bool {
+        source == .cache || isFailed
+    }
 }
 
-/// 화면에서 들어오는 입력입니다.
+/// 화면 밖에서 들어오는 것까지 포함한 입력입니다.
 nonisolated enum PhotoListIntent: Equatable, Sendable {
     case onAppear
     /// 목록 끝에 닿았습니다.
     case reachedBottom
     case retry
+    /// 끊겼던 연결이 돌아왔습니다.
+    case connectionRestored
 }
 
 /// 요청의 결과입니다.

@@ -13,6 +13,7 @@ struct MillieCatApp: App {
     /// 덕분에 테스트에서는 같은 자리에 대역을 넣어 화면 밖에서 동작을 확인할 수 있습니다.
     private let repository: NetworkFirstPhotoRepository
     private let loader: CacheFirstPhotoDataLoader
+    private let connectivity = ConnectivityMonitor()
 
     init() {
         let client = URLSessionHTTPClient()
@@ -22,7 +23,11 @@ struct MillieCatApp: App {
 
     var body: some Scene {
         WindowGroup {
-            PhotoListView(repository: repository, loader: loader)
+            PhotoListView(
+                repository: repository,
+                loader: loader,
+                isOnline: connectivity.isOnline
+            )
         }
     }
 }

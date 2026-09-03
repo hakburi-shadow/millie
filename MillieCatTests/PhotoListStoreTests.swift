@@ -1,3 +1,4 @@
+import Combine
 import Testing
 import Foundation
 import Core_Domain
@@ -130,5 +131,88 @@ struct PhotoListStoreTests {
 
         #expect(sut.state.photos.map(\.id) == ["a"])
         #expect(sut.state.phase == .loaded)
+    }
+}
+
+/// 연결이 돌아왔을 때의 동작입니다.
+///
+/// 연결 상태는 값이 몇 번 올지 모르는 흐름이라 Combine 으로 받습니다.
+/// 테스트에서는 실제 연결 대신 값을 직접 흘려보내 확인합니다.
+@MainActor
+@Suite("PhotoListStore 연결 복구")
+struct PhotoListStoreConnectivityTests {
+
+    private func cachedState() -> PhotoListState {
+        PhotoListState(photos: [makePhoto("a")], phase: .loaded, source: .cache)
+    }
+
+    @Test("저장된 것을 보고 있을 때 연결이 돌아오면 다시 불러옵니다")
+    func restored_reloadsWhenShowingCache() async {
+        let repository = SpyRepository()
+        let isOnline = PassthroughSubject<Bool, Never>()
+        let sut = PhotoListStore(
+            repository: repository,
+            initialState: cachedState(),
+            isOnline: isOnline.eraseToAnyPublisher()
+        )
+
+        isOnline.send(true)
+        await settle()
+
+        #expect(await repository.callCount == 1)
+        // 다시 불러왔으므로 더 이상 저장된 것을 보고 있지 않습니다.
+        #expect(sut.state.source == .network)
+    }
+
+    /// 잘 보고 있는데 연결 신호만으로 목록을 건드리면 보던 자리를 잃습니다.
+    @Test("정상적으로 보고 있으면 연결이 돌아와도 그대로 둡니다")
+    func restored_doesNothingWhenAlreadyFresh() async {
+        let repository = SpyRepository()
+        let isOnline = PassthroughSubject<Bool, Never>()
+        let sut = PhotoListStore(
+            repository: repository,
+            initialState: PhotoListState(photos: [makePhoto("a")], phase: .loaded, source: .network),
+            isOnline: isOnline.eraseToAnyPublisher()
+        )
+
+        isOnline.send(true)
+        await settle()
+
+        #expect(await repository.callCount == 0)
+        #expect(sut.state.photos.map(\.id) == ["a"])
+    }
+
+    @Test("연결이 끊겼다는 신호에는 아무것도 하지 않습니다")
+    func disconnected_doesNothing() async {
+        let repository = SpyRepository()
+        let isOnline = PassthroughSubject<Bool, Never>()
+        let sut = PhotoListStore(
+            repository: repository,
+            initialState: cachedState(),
+            isOnline: isOnline.eraseToAnyPublisher()
+        )
+
+        isOnline.send(false)
+        await settle()
+
+        #expect(await repository.callCount == 0)
+        #expect(sut.state.source == .cache)
+    }
+
+    @Test("실패한 상태에서 연결이 돌아오면 다시 불러옵니다")
+    func restored_reloadsAfterFailure() async {
+        let repository = SpyRepository()
+        let isOnline = PassthroughSubject<Bool, Never>()
+        let sut = PhotoListStore(
+            repository: repository,
+            initialState: PhotoListState(phase: .failed(.offlineAndEmpty)),
+            isOnline: isOnline.eraseToAnyPublisher()
+        )
+
+        isOnline.send(true)
+        await settle()
+
+        #expect(await repository.callCount == 1)
+        #expect(!sut.state.isFailed)
     }
 }

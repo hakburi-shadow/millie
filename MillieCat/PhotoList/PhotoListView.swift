@@ -1,3 +1,4 @@
+import Combine
 import Core_Domain
 import SwiftUI
 
@@ -8,8 +9,14 @@ struct PhotoListView<Repository: PhotoRepository>: View {
     /// 고른 칸입니다. 값이 있으면 상세 화면이 올라옵니다.
     @State private var selected: Photo?
 
-    init(repository: Repository, loader: any PhotoDataLoader) {
-        _store = StateObject(wrappedValue: PhotoListStore(repository: repository))
+    init(
+        repository: Repository,
+        loader: any PhotoDataLoader,
+        isOnline: AnyPublisher<Bool, Never>? = nil
+    ) {
+        _store = StateObject(
+            wrappedValue: PhotoListStore(repository: repository, isOnline: isOnline)
+        )
         self.loader = loader
     }
 

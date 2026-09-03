@@ -6,9 +6,12 @@ import Foundation
 ///
 /// 상태를 바꾸는 코드는 `reduce` 한 곳뿐이고, 여기서는 무엇을 언제 시킬지만 정합니다.
 ///
-/// `@MainActor` 와 `@Published` 를 쓰는 이유가 있습니다. 상태를 구독하는 쪽이
-/// SwiftUI 목록과 UIKit 상세 화면 둘 다인데, `@Published` 는 양쪽 모두에서
-/// 같은 방식으로 받아볼 수 있습니다.
+/// 비동기를 두 가지 방식으로 나눠 씁니다.
+///
+/// - **요청 한 번에 결과 한 번**인 일(`loadNext`)은 Swift Concurrency 로 처리합니다.
+///   시작과 끝이 있고 위에서 아래로 읽힙니다.
+/// - **끝없이 흘러오는 것**(연결이 끊기고 붙는 것, 상태가 바뀌었다는 알림)은 Combine 으로
+///   다룹니다. 값이 몇 번 올지 모르는 일은 `await` 로 표현되지 않습니다.
 ///
 /// 저장소를 `any PhotoRepository` 가 아니라 제네릭으로 받는 이유가 있습니다.
 /// 존재 타입을 거쳐 호출하면 `throws(AppError)` 가 `any Error` 로 지워져,
@@ -20,15 +23,34 @@ final class PhotoListStore<Repository: PhotoRepository>: ObservableObject {
     private let repository: Repository
     private let pageSize: Int
     private var task: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
 
+    /// 연결 상태는 구현체가 아니라 흐름 그 자체로 받습니다.
+    /// 이 계층에 필요한 것은 "연결이 어떻게 바뀌는가" 뿐이라,
+    /// 무엇이 그것을 알려주는지는 알 필요가 없습니다.
     init(
         repository: Repository,
         pageSize: Int = 10,
-        initialState: PhotoListState = PhotoListState()
+        initialState: PhotoListState = PhotoListState(),
+        isOnline: AnyPublisher<Bool, Never>? = nil
     ) {
         self.repository = repository
         self.pageSize = pageSize
         self.state = initialState
+
+        if let isOnline {
+            observe(isOnline)
+        }
+    }
+
+    private func observe(_ isOnline: AnyPublisher<Bool, Never>) {
+        isOnline
+            // 끊긴 순간이 아니라 돌아온 순간만 봅니다.
+            .filter { $0 }
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.send(.connectionRestored) }
+            }
+            .store(in: &cancellables)
     }
 
     func send(_ intent: PhotoListIntent) {
@@ -46,6 +68,12 @@ final class PhotoListStore<Repository: PhotoRepository>: ObservableObject {
 
         case .retry:
             guard !state.isLoading else { return }
+            load(isFirstPage: state.isEmpty)
+
+        case .connectionRestored:
+            // 저장된 것을 보고 있거나 실패한 상태일 때만 다시 불러옵니다.
+            // 잘 보고 있는데 연결 신호만으로 목록을 건드리면 보던 자리를 잃습니다.
+            guard !state.isLoading, state.needsFreshData else { return }
             load(isFirstPage: state.isEmpty)
         }
     }
