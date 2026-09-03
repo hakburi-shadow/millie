@@ -16,7 +16,10 @@ private struct StubLoader: PhotoDataLoader {
 @Suite("ImageDetailViewController")
 struct ImageDetailViewControllerTests {
 
-    private func makeSUT(onClose: @escaping () -> Void = {}) -> ImageDetailViewController {
+    private func makeSUT(
+        imageData: Data = Data(),
+        onClose: @escaping () -> Void = {}
+    ) -> ImageDetailViewController {
         let photo = Photo(
             id: "abc123",
             url: URL(string: "https://e.com/abc123.jpg")!,
@@ -25,11 +28,25 @@ struct ImageDetailViewControllerTests {
         )
         let controller = ImageDetailViewController(
             photo: photo,
-            loader: StubLoader(bytes: Data()),
+            loader: StubLoader(bytes: imageData),
             onClose: onClose
         )
         controller.loadViewIfNeeded()
         return controller
+    }
+
+    /// 비율만 확인하면 되므로 내용은 단색으로 채웁니다.
+    private func makeImageData(width: Int, height: Int) -> Data {
+        let size = CGSize(width: width, height: height)
+        return UIGraphicsImageRenderer(size: size).pngData { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+        }
+    }
+
+    /// 이미지를 받아오는 것은 비동기라 잠시 기다립니다.
+    private func settle() async {
+        try? await Task.sleep(for: .milliseconds(100))
     }
 
     @Test("네비게이션 바에 이미지 id 를 표시합니다")
@@ -120,6 +137,36 @@ struct ImageDetailViewControllerTests {
 
         #expect(sut.scrollView.contentSize.width > before.width)
         #expect(sut.scrollView.contentSize.height > before.height)
+    }
+
+    /// 이미지 뷰를 화면 크기로 잡으면 비율을 맞추느라 생긴 여백까지 함께 확대되어,
+    /// 확대한 뒤 이미지 바깥의 빈 곳으로 밀려 나갑니다.
+    @Test("이미지는 자기 비율만큼만 차지합니다")
+    func imageView_matchesImageRatio() async {
+        let sut = makeSUT(imageData: makeImageData(width: 100, height: 50))
+        sut.view.frame = CGRect(x: 0, y: 0, width: 400, height: 800)
+        sut.view.layoutIfNeeded()
+
+        await settle()
+
+        // 가로 2 : 세로 1 이므로 폭 400 에 맞추면 높이는 200 입니다.
+        #expect(sut.imageView.frame.width == 400)
+        #expect(sut.imageView.frame.height == 200)
+        #expect(sut.imageView.frame.height < sut.scrollView.bounds.height)
+    }
+
+    @Test("화면보다 작은 이미지는 가운데에 옵니다")
+    func imageView_isCentered() async {
+        let sut = makeSUT(imageData: makeImageData(width: 100, height: 50))
+        sut.view.frame = CGRect(x: 0, y: 0, width: 400, height: 800)
+        sut.view.layoutIfNeeded()
+
+        await settle()
+
+        // 위아래로 남는 600 이 절반씩 나뉩니다.
+        #expect(sut.scrollView.contentInset.top == 300)
+        #expect(sut.scrollView.contentInset.bottom == 300)
+        #expect(sut.scrollView.contentInset.left == 0)
     }
 
     @Test("확대 대상은 이미지입니다")

@@ -46,9 +46,51 @@ final class ImageDetailViewController: UIViewController {
 
         // 화면 크기가 바뀌면 확대는 풀고 다시 화면에 맞춥니다.
         // 회전 전의 배율과 위치를 그대로 두면 엉뚱한 곳을 보게 됩니다.
+        layoutImage()
+    }
+
+    /// 이미지를 화면에 맞춰 놓고 가운데에 둡니다.
+    private func layoutImage() {
+        guard scrollView.bounds.size != .zero else { return }
+
         scrollView.setZoomScale(scrollView.minimumZoomScale, animated: false)
+
+        let size = fittedSize(in: scrollView.bounds.size)
         imageView.frame = CGRect(origin: .zero, size: size)
         scrollView.contentSize = size
+        centerImage()
+    }
+
+    /// 비율을 유지한 채 화면 안에 들어가는 크기입니다.
+    ///
+    /// 이미지 뷰를 화면 크기로 잡으면 비율을 맞추느라 생긴 위아래 여백까지
+    /// 함께 확대되어, 확대한 뒤 이미지 바깥의 빈 곳으로 밀려 나갑니다.
+    /// 그래서 이미지가 실제로 그려지는 만큼만 차지하게 합니다.
+    private func fittedSize(in bounds: CGSize) -> CGSize {
+        guard let image = imageView.image,
+              image.size.width > 0,
+              image.size.height > 0 else {
+            // 아직 받아오기 전에는 비율을 알 수 없어 화면 전체를 차지하게 둡니다.
+            return bounds
+        }
+
+        let ratio = min(bounds.width / image.size.width, bounds.height / image.size.height)
+        return CGSize(width: image.size.width * ratio, height: image.size.height * ratio)
+    }
+
+    /// 이미지가 화면보다 작을 때 가운데에 오도록 여백을 줍니다.
+    ///
+    /// 확대해서 화면보다 커지면 여백은 0이 되고, 그때부터 밀어서 볼 수 있습니다.
+    private func centerImage() {
+        let horizontal = max(0, (scrollView.bounds.width - scrollView.contentSize.width) / 2)
+        let vertical = max(0, (scrollView.bounds.height - scrollView.contentSize.height) / 2)
+
+        scrollView.contentInset = UIEdgeInsets(
+            top: vertical,
+            left: horizontal,
+            bottom: vertical,
+            right: horizontal
+        )
     }
 
     private func configureNavigationItem() {
@@ -106,6 +148,8 @@ final class ImageDetailViewController: UIViewController {
             // 목록에서 이미 받아 둔 이미지라면 저장된 것을 그대로 씁니다.
             guard let data = try? await loader.data(for: photo.url) else { return }
             imageView.image = UIImage(data: data)
+            // 비율을 알게 된 뒤에야 차지할 크기를 정할 수 있습니다.
+            layoutImage()
         }
     }
 
@@ -118,5 +162,10 @@ final class ImageDetailViewController: UIViewController {
 extension ImageDetailViewController: UIScrollViewDelegate {
     func viewForZooming(in scrollView: UIScrollView) -> UIView? {
         imageView
+    }
+
+    /// 배율이 바뀔 때마다 여백을 다시 계산해 가운데를 유지합니다.
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        centerImage()
     }
 }
