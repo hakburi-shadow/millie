@@ -68,6 +68,60 @@ struct ImageDetailViewControllerTests {
         #expect(sut.scrollView.maximumZoomScale == 3)
     }
 
+    /// 설정값이 3이라는 것과 실제로 3에서 멈추는 것은 다른 이야기입니다.
+    /// 범위를 벗어난 배율을 넣어 보고 어디서 멈추는지 확인합니다.
+    @Test("3배를 넘겨 확대하려 해도 3배에서 멈춥니다")
+    func zoom_clampsAtMaximum() {
+        let sut = makeSUT()
+        sut.view.frame = CGRect(x: 0, y: 0, width: 402, height: 800)
+        sut.view.layoutIfNeeded()
+
+        sut.scrollView.zoomScale = 10
+
+        #expect(sut.scrollView.zoomScale == 3)
+    }
+
+    @Test("원래 크기보다 작게 축소되지 않습니다")
+    func zoom_clampsAtMinimum() {
+        let sut = makeSUT()
+        sut.view.frame = CGRect(x: 0, y: 0, width: 402, height: 800)
+        sut.view.layoutIfNeeded()
+
+        sut.scrollView.zoomScale = 0.1
+
+        #expect(sut.scrollView.zoomScale == 1)
+    }
+
+    /// 확대했다가 다시 줄이면 원래대로 돌아와야 합니다.
+    @Test("확대한 뒤 축소하면 원래 크기로 돌아옵니다")
+    func zoom_returnsToOriginal() {
+        let sut = makeSUT()
+        sut.view.frame = CGRect(x: 0, y: 0, width: 402, height: 800)
+        sut.view.layoutIfNeeded()
+
+        sut.scrollView.zoomScale = 3
+        #expect(sut.scrollView.zoomScale == 3)
+
+        sut.scrollView.zoomScale = 1
+
+        #expect(sut.scrollView.zoomScale == 1)
+    }
+
+    /// 확대하면 볼 수 있는 영역이 화면보다 커져야 밀어서 다른 곳을 볼 수 있습니다.
+    @Test("확대하면 밀어서 볼 수 있는 만큼 넓어집니다")
+    func zoom_expandsScrollableArea() {
+        let sut = makeSUT()
+        sut.view.frame = CGRect(x: 0, y: 0, width: 402, height: 800)
+        sut.view.layoutIfNeeded()
+        let before = sut.scrollView.contentSize
+
+        sut.scrollView.zoomScale = 3
+        sut.view.layoutIfNeeded()
+
+        #expect(sut.scrollView.contentSize.width > before.width)
+        #expect(sut.scrollView.contentSize.height > before.height)
+    }
+
     @Test("확대 대상은 이미지입니다")
     func viewForZooming_isImageView() {
         let sut = makeSUT()
