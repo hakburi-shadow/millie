@@ -29,6 +29,10 @@ struct PhotoCell: View {
         .frame(width: size.width, height: size.height)
         .clipped()
         .contentShape(Rectangle())
+        // 칸 하나를 통째로 하나의 요소로 다룹니다.
+        // 안쪽을 열어 두면 화면 자동화가 무엇을 눌러야 할지 특정하지 못합니다.
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier(AccessibilityID.photoCell)
         .task(id: photo.id) {
             await load()
         }

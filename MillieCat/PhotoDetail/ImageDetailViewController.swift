@@ -54,18 +54,23 @@ final class ImageDetailViewController: UIViewController {
     private func configureNavigationItem() {
         // 네비게이션 바 가운데에 이미지 id 를 둡니다.
         navigationItem.title = photo.id
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
+
+        let back = UIBarButtonItem(
             title: "뒤로",
             style: .plain,
             target: self,
             action: #selector(closeTapped)
         )
+        back.accessibilityIdentifier = AccessibilityID.detailBackButton
+        navigationItem.leftBarButtonItem = back
     }
 
     private func configureHierarchy() {
         view.backgroundColor = .systemBackground
 
         imageView.contentMode = .scaleAspectFit
+        imageView.isAccessibilityElement = true
+        imageView.accessibilityIdentifier = AccessibilityID.detailImage
 
         scrollView.delegate = self
         scrollView.minimumZoomScale = 1
