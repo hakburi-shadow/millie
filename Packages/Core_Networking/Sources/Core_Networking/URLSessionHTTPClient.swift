@@ -68,6 +68,9 @@ extension URLSessionHTTPClient {
     /// `URLError` 를 통째로 `.transport` 에 넣지 않고 오프라인·타임아웃을 따로 빼는 이유는,
     /// 이 둘이 화면에서 다르게 처리되기 때문입니다 — 오프라인이면 저장된 데이터로 넘어가고,
     /// 타임아웃이면 재시도할 가치가 있습니다.
+    ///
+    /// 어느 코드가 어느 상황에 오는지는 `URLError` 문서에 따른 것이고,
+    /// 실제로 연결을 끊어 확인하지는 못했습니다. 스텁으로만 고정해 두었습니다.
     static func mapTransportFailure(_ error: some Error) -> NetworkError {
         guard let urlError = error as? URLError else {
             return .transport(.unknown)
@@ -98,8 +101,15 @@ extension URLSessionHTTPClient {
 
     /// `Retry-After` 헤더를 초 단위로 읽습니다.
     ///
-    /// 명세상 두 가지 형식이 올 수 있습니다 — 초를 나타내는 정수, 또는 HTTP-date.
-    /// 정수만 처리하면 날짜 형식이 왔을 때 조용히 `nil` 이 되어 대기 시간을 잃습니다.
+    /// RFC 9110 §10.2.3 이 두 가지 형식을 허용합니다 — 초를 나타내는 정수(delay-seconds),
+    /// 또는 HTTP-date. 정수만 처리하면 날짜 형식이 왔을 때 조용히 `nil` 이 되어 대기 시간을 잃습니다.
+    ///
+    /// 다만 이 헤더는 **선택(MAY)** 이라 429 라도 없을 수 있고, 없으면 `nil` 을 돌려줍니다.
+    /// 화면은 그때 대기 시간 없는 안내로 갈립니다.
+    ///
+    /// **이 API 가 실제로 429 를 보내는지, 보낸다면 이 헤더를 붙이는지는 확인하지 못했습니다.**
+    /// 정상 응답에는 제한 관련 헤더가 하나도 없어서 정책을 짐작할 근거도 없었습니다.
+    /// 그래서 이 처리는 관찰이 아니라 명세에 근거한 방어입니다.
     static func retryAfterSeconds(from header: String?, now: Date = Date()) -> TimeInterval? {
         guard let header = header?.trimmingCharacters(in: .whitespaces), !header.isEmpty else {
             return nil

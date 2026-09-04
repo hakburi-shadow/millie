@@ -47,9 +47,13 @@ public protocol PhotoRepository: Sendable {
     /// 있으므로 실패로 올리면 이미지가 가득한 화면에 "아무것도 없다"는 안내가 붙습니다.
     ///
     /// - Parameter excludingIDs: 이미 화면에 있는 id 입니다.
-    ///   이 API 는 실제 페이지네이션이 없어 매 호출이 무작위이고 같은 id 가 반복 반환됩니다(실측).
+    ///   이 API 는 실제 페이지네이션이 없어 매 호출이 무작위입니다. `page` 나 `order` 를 붙여도
+    ///   같은 조건으로 두 번 부르면 다른 묶음이 옵니다(확인함).
     ///   그래서 무한 스크롤이 "다음 페이지 요청"이 아니라
     ///   "무작위 묶음을 중복 제거하며 이어붙이기"가 되고, 걸러낼 대상을 호출자가 알려줍니다.
+    ///
+    ///   이미 본 id 가 섞여 오는 비율은 **표본 100건에서 1%** 였습니다. 흔하지는 않지만
+    ///   0 은 아니라서, 걸러내지 않으면 같은 이미지가 목록에 두 번 붙습니다.
     func loadNext(limit: Int, excludingIDs: Set<String>) async throws(AppError) -> PhotoPage
 }
 

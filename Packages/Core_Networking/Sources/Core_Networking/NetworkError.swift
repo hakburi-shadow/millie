@@ -9,7 +9,8 @@ public enum NetworkError: Error, Equatable, Sendable {
     /// 네트워크 연결 자체가 없습니다.
     case offline
     case timeout
-    /// 429. `retryAfter` 는 `Retry-After` 헤더에서 읽은 대기 시간(초)입니다.
+    /// 429 (RFC 6585 §4). `retryAfter` 는 `Retry-After` 헤더에서 읽은 대기 시간(초)이며,
+    /// 그 헤더가 선택 사항이라 서버가 안 붙이면 `nil` 입니다.
     case rateLimited(retryAfter: TimeInterval?)
     /// 5xx — 서버 사정이므로 잠시 후 다시 시도할 가치가 있습니다.
     case server(status: Int)
