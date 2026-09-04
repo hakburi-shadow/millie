@@ -188,6 +188,29 @@ struct PhotoListStoreTests {
         #expect(sut.state.photos.map(\.id) == ["a", "b"])
         #expect(sut.state.hasMore)
     }
+
+    /// 저장분으로 대체됐다는 것은 네트워크가 실패했다는 뜻입니다.
+    /// 곧바로 다시 부르면 같은 실패를 반복할 뿐이고, 호출 제한에 걸린 상태라면
+    /// 대기 없이 제한된 쪽을 연달아 두드리게 됩니다.
+    @Test("저장분으로 대체됐으면 다시 시도하지 않습니다")
+    func reachedBottom_doesNotRetryAfterFallback() async {
+        let repository = SpyRepository(pages: [
+            PhotoPage(photos: [], source: .cache(reason: .rateLimited(retryAfter: 30)))
+        ])
+        let sut = PhotoListStore(
+            repository: repository,
+            initialState: PhotoListState(photos: [makePhoto("a")], phase: .loaded)
+        )
+
+        sut.send(.reachedBottom)
+        await settle()
+
+        #expect(await repository.callCount == 1)
+        // 붙은 것이 없으므로 더 없다고 보고, 보고 있던 목록은 그대로 둡니다.
+        #expect(!sut.state.hasMore)
+        #expect(sut.state.photos.map(\.id) == ["a"])
+        #expect(sut.state.source.fallbackReason == .rateLimited(retryAfter: 30))
+    }
 }
 
 /// 연결이 돌아왔을 때의 동작입니다.

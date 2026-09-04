@@ -116,9 +116,19 @@ final class PhotoListStore<Repository: PhotoRepository>: ObservableObject {
                 guard !Task.isCancelled else { return }
                 apply(event)
 
-                // 새로 붙은 것이 있거나 실패했으면 여기서 끝냅니다.
-                // 남는 경우는 "이미 본 것만 돌아온" 때뿐이라, 그때만 다시 시도합니다.
-                guard state.photos.count == countBefore, !state.isFailed else { return }
+                // 다시 시도하는 경우는 **네트워크가 응답했는데 이미 본 것만 담겨 온** 때뿐입니다.
+                // 그때는 한 번 더 부르면 다른 묶음이 올 수 있습니다.
+                //
+                // 나머지는 모두 여기서 끝냅니다.
+                // - 새로 붙은 것이 있음 → 목적을 이뤘습니다
+                // - 실패 → 곧바로 다시 불러도 같은 실패입니다
+                // - 저장분으로 대체됨 → 네트워크가 실패해서 대체한 것이므로 위와 같습니다.
+                //   이 경우를 걸러내지 않으면 호출 제한(429)에 걸린 채로 대기 없이
+                //   연달아 세 번 요청하게 됩니다. 제한이 걸린 쪽을 다시 두드리는 셈입니다
+                guard state.photos.count == countBefore,
+                      !state.isFailed,
+                      state.source.fallbackReason == nil
+                else { return }
             }
         }
     }
