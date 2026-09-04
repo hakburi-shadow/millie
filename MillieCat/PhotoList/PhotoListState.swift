@@ -13,7 +13,7 @@ import Foundation
 nonisolated struct PhotoListState: Equatable, Sendable {
     var photos: [Photo] = []
     var phase: Phase = .idle
-    /// 지금 보고 있는 것이 저장된 데이터인지 나타냅니다. 안내 문구 노출에 씁니다.
+    /// 지금 보고 있는 것이 저장된 데이터인지, 그렇다면 왜인지 나타냅니다. 안내 문구 노출에 씁니다.
     var source: PhotoSource = .network
 
     enum Phase: Equatable {
@@ -56,7 +56,7 @@ nonisolated extension PhotoListState {
     /// 저장된 것을 보고 있거나 불러오기에 실패한 경우입니다.
     /// 연결이 돌아왔을 때 다시 불러올지 판단하는 기준이 됩니다.
     var needsFreshData: Bool {
-        source == .cache || isFailed
+        source.fallbackReason != nil || isFailed
     }
 }
 

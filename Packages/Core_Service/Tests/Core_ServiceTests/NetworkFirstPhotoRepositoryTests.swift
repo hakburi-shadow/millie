@@ -97,8 +97,48 @@ struct NetworkFirstPhotoRepositoryTests {
 
         let page = try await sut.loadNext(limit: 10, excludingIDs: [])
 
-        #expect(page.source == .cache)
+        #expect(page.source == .cache(reason: .offline))
         #expect(page.photos.map(\.id) == ["x"])
+    }
+
+    /// 429 는 연결 문제가 아닙니다. 대체했다는 사실만 전하면 화면은 원인을 짐작하게 되고,
+    /// 실제로 호출 제한을 두고 "연결이 없다"고 안내했습니다.
+    @Test("호출 제한으로 대체했으면 그 원인을 함께 전달합니다")
+    func rateLimited_fallsBackCarryingReason() async throws {
+        let store = makeStore()
+        try await store.upsert([
+            Photo(id: "x", url: URL(string: "https://e.com/x.jpg")!, width: 300, height: 120)
+        ])
+        let sut = NetworkFirstPhotoRepository(
+            client: StubHTTPClient(failure: .rateLimited(retryAfter: 30)),
+            store: store
+        )
+
+        let page = try await sut.loadNext(limit: 10, excludingIDs: [])
+
+        #expect(page.source == .cache(reason: .rateLimited(retryAfter: 30)))
+        #expect(page.photos.map(\.id) == ["x"])
+    }
+
+    /// 이어서 불러오다 저장분이 떨어진 것은 실패가 아닙니다.
+    /// 호출자는 이미 보여줄 것을 들고 있으므로, 실패로 올리면
+    /// 이미지가 가득한 화면에 "아무것도 없다"는 안내가 붙습니다.
+    @Test("이어서 불러오다 저장분이 떨어지면 실패가 아니라 빈 묶음입니다")
+    func exhaustedWhilePaginating_returnsEmptyPageInsteadOfThrowing() async throws {
+        let store = makeStore()
+        try await store.upsert([
+            Photo(id: "x", url: URL(string: "https://e.com/x.jpg")!, width: 300, height: 120)
+        ])
+        let sut = NetworkFirstPhotoRepository(
+            client: StubHTTPClient(failure: .offline),
+            store: store
+        )
+
+        // "x" 는 이미 화면에 있습니다. 저장소에는 그것뿐이라 돌려줄 것이 남지 않습니다.
+        let page = try await sut.loadNext(limit: 10, excludingIDs: ["x"])
+
+        #expect(page.photos.isEmpty)
+        #expect(page.source == .cache(reason: .offline))
     }
 
     /// 연결이 없어도 보여줄 것이 있으면 화면은 정상입니다.
@@ -110,7 +150,7 @@ struct NetworkFirstPhotoRepositoryTests {
             store: makeStore()
         )
 
-        await #expect(throws: AppError.offlineAndEmpty) {
+        await #expect(throws: AppError.offline) {
             try await sut.loadNext(limit: 10, excludingIDs: [])
         }
     }

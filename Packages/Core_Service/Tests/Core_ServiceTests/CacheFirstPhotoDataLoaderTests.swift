@@ -69,7 +69,7 @@ struct CacheFirstPhotoDataLoaderTests {
             downloader: CountingDownloader(failure: .offline)
         )
 
-        await #expect(throws: AppError.offlineAndEmpty) {
+        await #expect(throws: AppError.offline) {
             try await sut.data(for: anyURL)
         }
     }

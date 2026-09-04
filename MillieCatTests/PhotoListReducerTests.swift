@@ -54,12 +54,17 @@ struct PhotoListReducerTests {
         #expect(next.phase == .failed(.network))
     }
 
-    /// 저장된 데이터를 보고 있다는 사실을 화면이 알아야 안내를 띄울 수 있습니다.
-    @Test("어디서 온 것인지 상태에 남깁니다")
-    func loaded_recordsSource() {
-        let next = reduce(PhotoListState(), .loaded(page(["a"], source: .cache)))
+    /// 저장된 데이터를 보고 있다는 사실과 **그 원인**을 화면이 알아야
+    /// 연결 없음과 호출 제한을 구분해 안내할 수 있습니다.
+    @Test("어디서 온 것인지 원인까지 상태에 남깁니다")
+    func loaded_recordsSourceWithReason() {
+        let next = reduce(
+            PhotoListState(),
+            .loaded(page(["a"], source: .cache(reason: .rateLimited(retryAfter: 30))))
+        )
 
-        #expect(next.source == .cache)
+        #expect(next.source == .cache(reason: .rateLimited(retryAfter: 30)))
+        #expect(next.source.fallbackReason == .rateLimited(retryAfter: 30))
     }
 
     @Test("첫 묶음과 이어서 불러오기를 구분합니다")

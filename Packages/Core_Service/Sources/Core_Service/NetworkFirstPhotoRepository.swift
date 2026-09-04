@@ -40,13 +40,24 @@ public struct NetworkFirstPhotoRepository: PhotoRepository {
 
     /// 네트워크가 실패했을 때 저장된 것으로 대체합니다.
     ///
-    /// 저장된 것도 없을 때만 실패로 처리합니다. 연결이 없어도 보여줄 것이 있으면
+    /// **보여줄 것이 하나도 없을 때만 실패입니다.** 연결이 없어도 보여줄 것이 있으면
     /// 화면은 정상이기 때문입니다.
+    ///
+    /// 저장분이 비어서 돌아오는 경우는 두 가지고, 둘은 다르게 다뤄야 합니다.
+    ///
+    /// - **처음부터 아무것도 없음**(`excludingIDs` 가 빔) — 화면이 빈 채로 남으므로 실패입니다.
+    /// - **이어서 불러오다 떨어짐**(`excludingIDs` 가 있음) — 호출자가 이미 그만큼 들고 있다는
+    ///   뜻이라 화면은 정상입니다. 빈 묶음을 돌려주어 "더 없음"으로 알립니다.
+    ///
+    /// 이 구분이 없을 때는 두 경우 모두 실패가 되어, 오프라인에서 끝까지 스크롤하면
+    /// 이미지가 가득한 화면에 "저장된 이미지도 없어요" 가 떴습니다.
     private func loadStored(
         limit: Int,
         excludingIDs: Set<String>,
         after cause: NetworkError
     ) async throws(AppError) -> PhotoPage {
+        let reason = Self.mapToAppError(cause)
+
         let stored: [Photo]
         do {
             stored = try await store.fetchShuffled(limit: limit, excludingIDs: excludingIDs)
@@ -54,20 +65,21 @@ public struct NetworkFirstPhotoRepository: PhotoRepository {
             throw AppError.storage
         }
 
-        guard !stored.isEmpty else {
-            throw Self.mapToAppError(cause)
+        guard !stored.isEmpty || !excludingIDs.isEmpty else {
+            throw reason
         }
-        return PhotoPage(photos: stored, source: .cache)
+        return PhotoPage(photos: stored, source: .cache(reason: reason))
     }
 
     /// 전송 계층의 실패를 화면이 이해하는 표현으로 옮깁니다.
     ///
-    /// 이 변환이 일어나는 시점은 **저장된 것도 없을 때**뿐이라,
-    /// 연결이 없는 경우가 곧 "보여줄 것이 아무것도 없음"이 됩니다.
+    /// 실패로 올릴 때와 `source` 에 원인으로 담을 때 **모두** 이 변환을 씁니다.
+    /// 전에는 저장분이 없을 때만 변환했고, 대체에 성공한 경우에는 원인이 버려졌습니다.
+    /// 그래서 429 로 대체했는데도 화면은 그 사실을 알 길이 없었습니다.
     static func mapToAppError(_ error: NetworkError) -> AppError {
         switch error {
         case .offline:
-            .offlineAndEmpty
+            .offline
         case .rateLimited(let retryAfter):
             .rateLimited(retryAfter: retryAfter)
         case .decoding:

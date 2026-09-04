@@ -86,12 +86,22 @@ struct PhotoListView<Repository: PhotoRepository>: View {
     }
 
     /// 저장된 데이터를 보고 있거나 실패했을 때 위쪽에 띄우는 안내입니다.
+    ///
+    /// **보여줄 것이 있을 때만 나옵니다.** 아무것도 없을 때는 `emptyState` 가 화면 전체를 씁니다.
+    /// 그래서 두 갈래 모두 `fallbackMessage` 를 씁니다 — 화면에 이미지가 있는 상황이므로
+    /// "아무것도 없다"고 말하는 문구가 여기 올 일은 없어야 합니다.
+    /// 지금은 `.failed` 로 여기까지 오는 것이 저장소 실패뿐이지만, 그 사실에 기대지 않고
+    /// 문구 쪽에서 막습니다. 도달 불가에 기댄 판단은 조건이 바뀌면 조용히 틀립니다.
     @ViewBuilder
     private var statusBanner: some View {
-        if case .failed(let error) = store.state.phase, !store.state.isEmpty {
-            banner(text: error.message, showsRetry: error.isRecoverableByRetry)
-        } else if store.state.source == .cache, !store.state.isEmpty {
-            banner(text: "연결이 없어 저장된 이미지를 보여주고 있어요.", showsRetry: true)
+        if !store.state.isEmpty {
+            if case .failed(let error) = store.state.phase {
+                banner(text: error.fallbackMessage, showsRetry: error.isRecoverableByRetry)
+            } else if let reason = store.state.source.fallbackReason {
+                // 무엇 때문에 대체했는지는 `source` 가 나릅니다.
+                // 여기서 원인을 짐작하면, 429 를 두고 "연결이 없다"고 말하게 됩니다.
+                banner(text: reason.fallbackMessage, showsRetry: reason.isRecoverableByRetry)
+            }
         }
     }
 

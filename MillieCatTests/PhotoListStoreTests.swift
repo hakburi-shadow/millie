@@ -143,12 +143,14 @@ struct PhotoListStoreTests {
 struct PhotoListStoreConnectivityTests {
 
     private func cachedState() -> PhotoListState {
-        PhotoListState(photos: [makePhoto("a")], phase: .loaded, source: .cache)
+        PhotoListState(photos: [makePhoto("a")], phase: .loaded, source: .cache(reason: .offline))
     }
 
     @Test("저장된 것을 보고 있을 때 연결이 돌아오면 다시 불러옵니다")
     func restored_reloadsWhenShowingCache() async {
-        let repository = SpyRepository()
+        // 연결이 돌아왔으니 새 항목이 오는 상황입니다.
+        // 빈 결과를 돌려주면 "이미 본 것만 왔다"가 되어 다시 시도가 섞여 들어옵니다.
+        let repository = SpyRepository(pages: [PhotoPage(photos: [makePhoto("b")], source: .network)])
         let isOnline = PassthroughSubject<Bool, Never>()
         let sut = PhotoListStore(
             repository: repository,
@@ -162,6 +164,7 @@ struct PhotoListStoreConnectivityTests {
         #expect(await repository.callCount == 1)
         // 다시 불러왔으므로 더 이상 저장된 것을 보고 있지 않습니다.
         #expect(sut.state.source == .network)
+        #expect(sut.state.source.fallbackReason == nil)
     }
 
     /// 잘 보고 있는데 연결 신호만으로 목록을 건드리면 보던 자리를 잃습니다.
@@ -196,16 +199,16 @@ struct PhotoListStoreConnectivityTests {
         await settle()
 
         #expect(await repository.callCount == 0)
-        #expect(sut.state.source == .cache)
+        #expect(sut.state.source == .cache(reason: .offline))
     }
 
     @Test("실패한 상태에서 연결이 돌아오면 다시 불러옵니다")
     func restored_reloadsAfterFailure() async {
-        let repository = SpyRepository()
+        let repository = SpyRepository(pages: [PhotoPage(photos: [makePhoto("a")], source: .network)])
         let isOnline = PassthroughSubject<Bool, Never>()
         let sut = PhotoListStore(
             repository: repository,
-            initialState: PhotoListState(phase: .failed(.offlineAndEmpty)),
+            initialState: PhotoListState(phase: .failed(.offline)),
             isOnline: isOnline.eraseToAnyPublisher()
         )
 
@@ -214,5 +217,6 @@ struct PhotoListStoreConnectivityTests {
 
         #expect(await repository.callCount == 1)
         #expect(!sut.state.isFailed)
+        #expect(sut.state.photos.map(\.id) == ["a"])
     }
 }

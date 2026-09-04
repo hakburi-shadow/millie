@@ -2,10 +2,24 @@ import Foundation
 
 /// 목록 데이터를 어디서 가져왔는지 나타냅니다.
 ///
-/// 화면이 "지금 저장된 것을 보고 있다"를 알아야 오프라인 안내를 띄울 수 있습니다.
+/// 화면이 "지금 저장된 것을 보고 있다"를 알아야 안내를 띄울 수 있습니다.
 public enum PhotoSource: Equatable, Sendable {
     case network
-    case cache
+    /// 네트워크가 실패해 저장된 것으로 대체했습니다. `reason` 은 그 실패입니다.
+    ///
+    /// **원인을 함께 나릅니다.** 대체했다는 사실만 전하면 화면은 원인을 알 수 없어
+    /// 한 가지 문구로 뭉뚱그리게 됩니다. 실제로 그랬습니다 — 호출 제한(429)에 걸렸는데도
+    /// "연결이 없어서"라고 안내했습니다. 연결 없음과 호출 제한은 사용자가 할 수 있는 일이
+    /// 서로 달라서(기다리기 / 연결 확인하기) 화면에서 구분되어야 합니다.
+    case cache(reason: AppError)
+}
+
+public extension PhotoSource {
+    /// 저장된 것으로 대체했다면 그 원인입니다. 네트워크에서 온 것이면 `nil` 입니다.
+    var fallbackReason: AppError? {
+        guard case .cache(let reason) = self else { return nil }
+        return reason
+    }
 }
 
 public struct PhotoPage: Equatable, Sendable {
@@ -26,7 +40,11 @@ public protocol PhotoRepository: Sendable {
     /// 다음 묶음을 가져옵니다.
     ///
     /// - 온라인: API 호출 → 로컬에 저장 → 받은 결과 반환
-    /// - 실패·오프라인: 저장된 것을 **무작위 순서로** 반환
+    /// - 실패·오프라인: 저장된 것을 **무작위 순서로** 반환(`source` 에 원인을 담아서)
+    ///
+    /// 빈 묶음(`photos` 가 `[]`)은 실패가 아니라 **더 없음**입니다.
+    /// 이어서 불러오다 남은 것이 떨어진 경우가 여기 해당합니다. 화면에는 이미 보여줄 것이
+    /// 있으므로 실패로 올리면 이미지가 가득한 화면에 "아무것도 없다"는 안내가 붙습니다.
     ///
     /// - Parameter excludingIDs: 이미 화면에 있는 id 입니다.
     ///   이 API 는 실제 페이지네이션이 없어 매 호출이 무작위이고 같은 id 가 반복 반환됩니다(실측).

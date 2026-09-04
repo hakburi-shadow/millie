@@ -26,7 +26,7 @@ public struct CacheFirstPhotoDataLoader: PhotoDataLoader {
         do {
             downloaded = try await downloader.data(from: url)
         } catch {
-            throw error == .offline ? .offlineAndEmpty : .network
+            throw error == .offline ? .offline : .network
         }
 
         await cache.store(downloaded, for: url)
