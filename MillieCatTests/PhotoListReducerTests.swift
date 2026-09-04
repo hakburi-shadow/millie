@@ -73,6 +73,49 @@ struct PhotoListReducerTests {
         #expect(reduce(PhotoListState(), .loadingStarted(isFirstPage: false)).phase == .loadingMore)
     }
 
+    // MARK: - 더 불러올 것이 남았는지
+
+    @Test("새로 붙은 것이 있으면 더 있다고 봅니다")
+    func loaded_withNewPhotos_keepsHasMore() {
+        let state = PhotoListState(photos: [makePhoto("a")])
+
+        let next = reduce(state, .loaded(page(["b"])))
+
+        #expect(next.hasMore)
+    }
+
+    /// 이 API 에는 "마지막 페이지" 신호가 없어서, 끝은 응답이 아니라 결과로 판단합니다.
+    @Test("이미 본 것만 돌아오면 더 없다고 봅니다")
+    func loaded_withOnlyDuplicates_clearsHasMore() {
+        let state = PhotoListState(photos: [makePhoto("a"), makePhoto("b")])
+
+        let next = reduce(state, .loaded(page(["a", "b"])))
+
+        #expect(!next.hasMore)
+    }
+
+    @Test("빈 묶음이 오면 더 없다고 봅니다")
+    func loaded_withEmptyPage_clearsHasMore() {
+        let state = PhotoListState(photos: [makePhoto("a")])
+
+        let next = reduce(state, .loaded(page([])))
+
+        #expect(!next.hasMore)
+        // 더 없다는 것과 실패는 다릅니다. 보고 있던 목록은 그대로여야 합니다.
+        #expect(next.phase == .loaded)
+        #expect(next.photos.map(\.id) == ["a"])
+    }
+
+    /// 그대로 두면 한 번 끝에 닿은 뒤로는 새로 고쳐도 이어서 불러올 수 없습니다.
+    @Test("처음부터 다시 불러오면 더 없음 판단도 되돌립니다")
+    func loadingStarted_firstPage_resetsHasMore() {
+        let state = PhotoListState(photos: [makePhoto("a")], hasMore: false)
+
+        #expect(reduce(state, .loadingStarted(isFirstPage: true)).hasMore)
+        // 이어서 불러오는 중에는 되돌리지 않습니다. 방금 내린 판단을 지우게 됩니다.
+        #expect(!reduce(state, .loadingStarted(isFirstPage: false)).hasMore)
+    }
+
     @Test("이미 화면에 있는 id 를 다음 요청의 제외 대상으로 넘깁니다")
     func seenIDs_collectsCurrentPhotos() {
         let state = PhotoListState(photos: [makePhoto("a"), makePhoto("b")])

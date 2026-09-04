@@ -2,6 +2,20 @@ import Combine
 import Core_Domain
 import Foundation
 
+/// 한 번의 불러오기에서 요청을 보낼 수 있는 최대 횟수입니다.
+///
+/// 이 API 는 페이지 개념이 없어 매번 무작위 묶음을 돌려주고, 이미 본 것만 담겨 오기도 합니다.
+/// 그러면 목록이 늘지 않고, 화면의 마지막 줄도 그대로라 다음 요청을 스스로 부르지 못한 채
+/// 멈춥니다. 사용자가 보기에는 스크롤이 끝에서 아무 반응이 없는 상태입니다.
+///
+/// 그래서 새 항목이 나올 때까지 몇 번 더 시도합니다. 무한히 시도하지는 않습니다 —
+/// 정말로 더 없을 때 요청만 반복하게 되기 때문입니다. 정해진 횟수 안에 새 항목이 없으면
+/// 더 없는 것으로 보고(`PhotoListState.hasMore`) 멈춥니다.
+///
+/// `PhotoListStore` 가 제네릭이라 타입 안에 둘 수 없어(제네릭 타입은 저장 static 프로퍼티를
+/// 가질 수 없습니다) 파일 수준에 두었습니다.
+private let maxAttemptsPerLoad = 3
+
 /// 입력을 받아 필요한 일을 시키고, 결과를 Reducer 에 넘겨 상태를 갱신합니다.
 ///
 /// 상태를 바꾸는 코드는 `reduce` 한 곳뿐이고, 여기서는 무엇을 언제 시킬지만 정합니다.
@@ -63,7 +77,10 @@ final class PhotoListStore<Repository: PhotoRepository>: ObservableObject {
         case .reachedBottom:
             // 스크롤 이벤트는 짧은 시간에 여러 번 들어옵니다.
             // 진행 중인 요청이 있으면 무시해 같은 요청이 겹쳐 나가지 않게 합니다.
-            guard !state.isLoading else { return }
+            //
+            // 더 없다고 판단된 뒤에는 요청하지 않습니다. 끝에 머무는 동안 소득 없는 호출이
+            // 반복되고, 사용자에게는 아무 일도 일어나지 않는 것으로 보이기 때문입니다.
+            guard !state.isLoading, state.hasMore else { return }
             load(isFirstPage: false)
 
         case .retry:
@@ -79,19 +96,30 @@ final class PhotoListStore<Repository: PhotoRepository>: ObservableObject {
     }
 
     private func load(isFirstPage: Bool) {
-        apply(.loadingStarted(isFirstPage: isFirstPage))
-
         task?.cancel()
-        task = Task { [repository, pageSize, seen = state.seenIDs] in
-            let event: PhotoListEvent
-            do throws(AppError) {
-                event = .loaded(try await repository.loadNext(limit: pageSize, excludingIDs: seen))
-            } catch {
-                event = .failed(error)
-            }
+        task = Task { [pageSize] in
+            for _ in 1 ... maxAttemptsPerLoad {
+                // 시도할 때마다 다시 표시합니다. 그래야 다시 시도하는 동안에도 `isLoading` 이
+                // 참으로 유지되어, 겹쳐 들어오는 스크롤 이벤트가 요청을 새로 만들지 않습니다.
+                apply(.loadingStarted(isFirstPage: isFirstPage))
+                let countBefore = state.photos.count
 
-            guard !Task.isCancelled else { return }
-            apply(event)
+                let event: PhotoListEvent
+                do throws(AppError) {
+                    event = .loaded(
+                        try await repository.loadNext(limit: pageSize, excludingIDs: state.seenIDs)
+                    )
+                } catch {
+                    event = .failed(error)
+                }
+
+                guard !Task.isCancelled else { return }
+                apply(event)
+
+                // 새로 붙은 것이 있거나 실패했으면 여기서 끝냅니다.
+                // 남는 경우는 "이미 본 것만 돌아온" 때뿐이라, 그때만 다시 시도합니다.
+                guard state.photos.count == countBefore, !state.isFailed else { return }
+            }
         }
     }
 

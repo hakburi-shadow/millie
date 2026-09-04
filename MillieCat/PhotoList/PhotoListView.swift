@@ -34,6 +34,7 @@ struct PhotoListView<Repository: PhotoRepository>: View {
                         rowView(row, isLandscape: isLandscape, containerWidth: proxy.size.width)
                             .onAppear { loadMoreIfNeeded(after: row, in: rows) }
                     }
+                    listFooter
                 }
                 .padding(.vertical, GridLayoutSpec.spacing)
             }
@@ -83,6 +84,23 @@ struct PhotoListView<Repository: PhotoRepository>: View {
     private func loadMoreIfNeeded(after row: PhotoRow, in rows: [PhotoRow]) {
         guard row.id == rows.last?.id else { return }
         store.send(.reachedBottom)
+    }
+
+    /// 목록 끝에 붙는 안내입니다. 이어서 불러오는 중이거나, 더 없을 때만 나옵니다.
+    ///
+    /// 끝났다는 사실을 알려 주지 않으면, 스크롤이 끝에서 반응하지 않는 것과
+    /// 더 이상 없는 것을 사용자가 구분할 수 없습니다.
+    @ViewBuilder
+    private var listFooter: some View {
+        if store.state.phase == .loadingMore {
+            ProgressView()
+                .padding(.vertical, 16)
+        } else if !store.state.hasMore, !store.state.isEmpty {
+            Text("더 불러올 이미지가 없어요.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 16)
+        }
     }
 
     /// 저장된 데이터를 보고 있거나 실패했을 때 위쪽에 띄우는 안내입니다.

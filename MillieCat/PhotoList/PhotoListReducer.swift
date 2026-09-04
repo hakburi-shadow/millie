@@ -10,11 +10,19 @@ nonisolated func reduce(_ state: PhotoListState, _ event: PhotoListEvent) -> Pho
     switch event {
     case .loadingStarted(let isFirstPage):
         next.phase = isFirstPage ? .loading : .loadingMore
+        if isFirstPage {
+            // 처음부터 다시 불러오는 중이므로 "더 없음" 판단도 함께 되돌립니다.
+            // 그대로 두면 한 번 끝에 닿은 뒤로는 새로 고쳐도 이어서 불러올 수 없습니다.
+            next.hasMore = true
+        }
 
     case .loaded(let page):
         next.photos = appendingWithoutDuplicates(page.photos, to: state.photos)
         next.source = page.source
         next.phase = .loaded
+        // 끝은 응답이 아니라 결과로 판단합니다. 이 API 에는 "마지막 페이지" 신호가 없고,
+        // 빈 묶음과 이미 본 것만 담긴 묶음이 똑같이 "더 붙일 것이 없다"를 뜻합니다.
+        next.hasMore = next.photos.count > state.photos.count
 
     case .failed(let error):
         next.phase = .failed(error)

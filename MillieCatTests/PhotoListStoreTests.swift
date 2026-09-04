@@ -132,6 +132,62 @@ struct PhotoListStoreTests {
         #expect(sut.state.photos.map(\.id) == ["a"])
         #expect(sut.state.phase == .loaded)
     }
+
+    // MARK: - 이미 본 것만 돌아올 때
+
+    /// 이 API 는 페이지 개념이 없어 이미 본 것만 담긴 묶음이 오기도 합니다.
+    /// 그때 목록이 늘지 않으면 화면의 마지막 줄도 그대로라, 다음 요청을 스스로 부르지 못합니다.
+    /// 사용자에게는 스크롤 끝에서 아무 반응이 없는 상태로 보입니다.
+    @Test("새 항목이 없으면 정해진 횟수만큼 다시 시도합니다")
+    func reachedBottom_retriesWhenNothingNewArrives() async {
+        // 묶음을 주지 않으면 대역은 매번 빈 결과를 돌려줍니다 — "이미 본 것만 왔다"와 같습니다.
+        let repository = SpyRepository()
+        let sut = PhotoListStore(
+            repository: repository,
+            initialState: PhotoListState(photos: [makePhoto("a")], phase: .loaded)
+        )
+
+        sut.send(.reachedBottom)
+        await settle()
+
+        #expect(await repository.callCount == 3)
+        #expect(!sut.state.hasMore)
+        // 더 없는 것은 실패가 아닙니다. 보고 있던 목록도 그대로여야 합니다.
+        #expect(sut.state.phase == .loaded)
+        #expect(sut.state.photos.map(\.id) == ["a"])
+    }
+
+    /// 끝에 머무는 동안 소득 없는 호출이 반복되면 데이터와 배터리만 씁니다.
+    @Test("더 없다고 판단한 뒤에는 요청하지 않습니다")
+    func reachedBottom_stopsAfterExhausted() async {
+        let repository = SpyRepository()
+        let sut = PhotoListStore(
+            repository: repository,
+            initialState: PhotoListState(photos: [makePhoto("a")], phase: .loaded, hasMore: false)
+        )
+
+        sut.send(.reachedBottom)
+        await settle()
+
+        #expect(await repository.callCount == 0)
+    }
+
+    /// 다시 시도하다 새 항목이 나오면 거기서 멈춰야 합니다.
+    @Test("새 항목이 나오면 남은 시도를 하지 않습니다")
+    func reachedBottom_stopsAsSoonAsSomethingNewArrives() async {
+        let repository = SpyRepository(pages: [PhotoPage(photos: [makePhoto("b")], source: .network)])
+        let sut = PhotoListStore(
+            repository: repository,
+            initialState: PhotoListState(photos: [makePhoto("a")], phase: .loaded)
+        )
+
+        sut.send(.reachedBottom)
+        await settle()
+
+        #expect(await repository.callCount == 1)
+        #expect(sut.state.photos.map(\.id) == ["a", "b"])
+        #expect(sut.state.hasMore)
+    }
 }
 
 /// 연결이 돌아왔을 때의 동작입니다.

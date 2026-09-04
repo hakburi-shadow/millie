@@ -15,6 +15,15 @@ nonisolated struct PhotoListState: Equatable, Sendable {
     var phase: Phase = .idle
     /// 지금 보고 있는 것이 저장된 데이터인지, 그렇다면 왜인지 나타냅니다. 안내 문구 노출에 씁니다.
     var source: PhotoSource = .network
+    /// 더 불러올 것이 남아 있는지입니다.
+    ///
+    /// 이 API 에는 "마지막 페이지"라는 신호가 없습니다. 매번 무작위 묶음이 오고, 이미 본 것만
+    /// 돌아오기도 합니다. 그래서 끝을 응답이 아니라 **결과로** 판단합니다 —
+    /// 여러 번 요청해도 새 항목이 붙지 않으면 더 없는 것으로 봅니다.
+    ///
+    /// 이 값이 없으면 끝에 닿을 때마다 소득 없는 요청을 계속 보내게 되고,
+    /// 사용자에게는 아무 일도 일어나지 않는 것으로 보입니다.
+    var hasMore: Bool = true
 
     enum Phase: Equatable {
         case idle
